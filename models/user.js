@@ -16,7 +16,7 @@ const { BCRYPT_WORK_FACTOR } = require("../config.js");
 class User {
   /** authenticate user with username, password.
    *
-   * Returns { username, first_name, last_name, email, is_admin }
+   * Returns { username, bgg_username, first_name, last_name, email, is_admin }
    *
    * Throws UnauthorizedError is user not found or wrong password.
    **/
@@ -26,6 +26,7 @@ class User {
     const result = await db.query(
           `SELECT username,
                   password,
+                  bgg_username AS "bggUsername", 
                   first_name AS "firstName",
                   last_name AS "lastName",
                   email,
@@ -51,13 +52,13 @@ class User {
 
   /** Register user with data.
    *
-   * Returns { username, firstName, lastName, email, isAdmin }
+   * Returns { username, bggUsername, firstName, lastName, email, isAdmin }
    *
    * Throws BadRequestError on duplicates.
    **/
 
   static async register(
-      { username, password, firstName, lastName, email, isAdmin }) {
+      { username, password, bggUsername, firstName, lastName, email, isAdmin }) {
     const duplicateCheck = await db.query(
           `SELECT username
            FROM users
@@ -75,15 +76,17 @@ class User {
           `INSERT INTO users
            (username,
             password,
+            bgg_username, 
             first_name,
             last_name,
             email,
             is_admin)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING username, first_name AS "firstName", last_name AS "lastName", email, is_admin AS "isAdmin"`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING username, bgg_username AS "bggUsername", first_name AS "firstName", last_name AS "lastName", email, is_admin AS "isAdmin"`,
         [
           username,
           hashedPassword,
+          bggUsername, 
           firstName,
           lastName,
           email,
@@ -98,12 +101,13 @@ class User {
 
   /** Find all users.
    *
-   * Returns [{ username, first_name, last_name, email, is_admin }, ...]
+   * Returns [{ username, bgg_username, first_name, last_name, email, is_admin }, ...]
    **/
 
   static async findAll() {
     const result = await db.query(
           `SELECT username,
+                  bgg_username AS "bggUsername", 
                   first_name AS "firstName",
                   last_name AS "lastName",
                   email,
@@ -117,7 +121,7 @@ class User {
 
   /** Given a username, return data about user.
    *
-   * Returns { username, first_name, last_name, is_admin }
+   * Returns { username, bgg_username,  first_name, last_name, is_admin }
    *
    * Throws NotFoundError if user not found.
    **/
@@ -125,6 +129,7 @@ class User {
   static async get(username) {
     const userRes = await db.query(
           `SELECT username,
+                  bgg_username AS "bggUsername", 
                   first_name AS "firstName",
                   last_name AS "lastName",
                   email,
@@ -148,9 +153,9 @@ class User {
    * all the fields; this only changes provided ones.
    *
    * Data can include:
-   *   { firstName, lastName, password, email, isAdmin }
+   *   { bggUsername, firstName, lastName, password, email, isAdmin }
    *
-   * Returns { username, firstName, lastName, email, isAdmin }
+   * Returns { username, bggUsername, firstName, lastName, email, isAdmin }
    *
    * Throws NotFoundError if not found.
    *
@@ -167,6 +172,7 @@ class User {
     const { setCols, values } = sqlForPartialUpdate(
         data,
         {
+          bggUsername: "bgg_username", 
           firstName: "first_name",
           lastName: "last_name",
           isAdmin: "is_admin",
@@ -177,6 +183,7 @@ class User {
                       SET ${setCols} 
                       WHERE username = ${usernameVarIdx} 
                       RETURNING username,
+                                bgg_username AS "bggUsername", 
                                 first_name AS "firstName",
                                 last_name AS "lastName",
                                 email,

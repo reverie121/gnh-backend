@@ -44,7 +44,7 @@ router.post("/", ensureAdmin, async function (req, res, next) {
 });
 
 
-/** GET / => { users: [ {username, firstName, lastName, email }, ... ] }
+/** GET / => { users: [ {username, bggUsername, firstName, lastName, email }, ... ] }
  *
  * Returns list of all users.
  *
@@ -63,7 +63,7 @@ router.get("/", ensureAdmin, async function (req, res, next) {
 
 /** GET /[username] => { user }
  *
- * Returns { username, firstName, lastName, isAdmin }
+ * Returns { username, bggUsername, firstName, lastName, isAdmin }
  *
  * Authorization required: admin or same user-as-:username
  **/
@@ -81,9 +81,9 @@ router.get("/:username", ensureCorrectUserOrAdmin, async function (req, res, nex
 /** PATCH /[username] { user } => { user }
  *
  * Data can include:
- *   { firstName, lastName, password, email }
+ *   { bggUsername, firstName, lastName, password, email }
  *
- * Returns { username, firstName, lastName, email, isAdmin }
+ * Returns { username, bggUsername, firstName, lastName, email, isAdmin }
  *
  * Authorization required: admin or same-user-as-:username
  **/
