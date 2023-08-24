@@ -1,20 +1,24 @@
 // Takes as input a gameList.
-// Outputs arrays of values, their IDs, and the number of times they appear in the collection for game categories, mechanics, and families.
+// Outputs objects of values, their IDs, and the number of times they appear in the collection for game categories, mechanics, and families.
 // Not currently in use.
 
 const parseLinkData = (gameList) => {
-    let categories = [];
-    let mechanics = [];
-    let families = [];
+    
+    // Initialize objects.
+    let categories = {};
+    let mechanics = {};
+    let families = {};
 
-    function increaseValue(arr, key, id) {
-        if (arr[key]) {
-            arr[key].push(id);
+    // Helper function used to add an ID the value for a specific obj[key].
+    function increaseValue(obj, key, id) {
+        if (obj[key]) {
+            obj[key].push(id);
         } else {
-            arr[key] = [id];
+            obj[key] = [id];
         }
     }
 
+    // Helper function used to add IDs to corresponding categories/mechanics/families lists.
     function addToArray(link, id) {
         if (link._attributes.type === "boardgamecategory") {
             increaseValue(categories, link._attributes.value, id);
@@ -25,6 +29,7 @@ const parseLinkData = (gameList) => {
         }
     }
 
+    // Iterate through gameList to fill game categories/mechanics/families lists with corresponding IDs.
     for (const g of gameList) {
         const gameID = g._attributes.id;
         for (const l of g.link) {

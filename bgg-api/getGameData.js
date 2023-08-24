@@ -1,6 +1,7 @@
-const GameNightBGGHelperAPI = require("./bgg-api");
-
 const convert = require("xml-js");
+
+const GameNightBGGHelperAPI = require("./bgg-api");
+// const parseLinkData = require("./bggUserDataParser");
 
 // Makes an API get request to BGG API for data for multiple games. Takes an array of game IDs as input and returns an arrat of game data.
 const getGameData = async (gameIDSet) => {
@@ -22,15 +23,17 @@ const getGameData = async (gameIDSet) => {
 // Process: One or more collection requests => make list of game IDs => request for data for all games from list.
 const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) => {
 
+    // Initialize Sets for user's game ID lists.
     const gameIDSet = new Set();
     const userCollectionIDSet = new Set();
     const userWishListIDSet = new Set();
     const userWantToPlayListIDSet = new Set();
     
-    function getIDArrayFromCollection(res, type="collection") {
-        const collectionData = JSON.parse(
-            convert.xml2json(res, { compact: true, spaces: 2 })
-        );
+    // Helper function for iterating through a collection request (any type) response and adding IDs to corresponding ID sets.
+    function getIDArrayFromCollection(collectionData, type="collection") {
+        // const collectionData = JSON.parse(
+        //     convert.xml2json(res, { compact: true, spaces: 2 })
+        // );
         if (Array.isArray(collectionData.items.item)) {
             Object.values(collectionData.items.item).map(g => {
                 gameIDSet.add(g._attributes.objectid)
@@ -41,34 +44,58 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
         }
     }
     
+    // Handle request for collection type request.
+    if (mode === "collection") {
+        const res = await GameNightBGGHelperAPI.getCollection(bggUsername);
+        getIDArrayFromCollection(res);
+
+        // User array of game IDs is used to request detailed game information from BGG.
+        const collectionData = await getGameData(gameIDSet);
+
+        // If for a Collection type request gameData can be returned alone.
+        return collectionData;
+    }
+
     // User requests get game data for the user's collection as well as other potential lists of games relevant to that user.
-    if (mode === "user") {
-        const [ collectionRes, WishlistRes, WantToPlayRes ] = await Promise.all([
+    else if (mode === "user") {
+        // Make requests to BGG API.
+        const [ collectionRes, wishListRes, wantToPlayRes ] = await Promise.all([
             GameNightBGGHelperAPI.getCollection(bggUsername), 
             GameNightBGGHelperAPI.getCollection(bggUsername, "wishList"), 
             GameNightBGGHelperAPI.getCollection(bggUsername, "wantToPlayList"), 
         ])
-        getIDArrayFromCollection(collectionRes);
-        getIDArrayFromCollection(WishlistRes, "wishList");
-        getIDArrayFromCollection(WantToPlayRes, "wantToPlayList");
-        gameIDSet.add(...playsIDs);                   
-    }
-    // If not a user request, make simple request for collection data.
-    else {
-        const res = await GameNightBGGHelperAPI.getCollection(bggUsername);
-        getIDArrayFromCollection(res);
-    }
+        const collectionData = JSON.parse(
+            convert.xml2json(collectionRes, { compact: true, spaces: 2 })
+        );
+        const wishListData = JSON.parse(
+            convert.xml2json(wishListRes, { compact: true, spaces: 2 })
+        );
+        const wantToPlayData = JSON.parse(
+            convert.xml2json(wantToPlayRes, { compact: true, spaces: 2 })
+        );                
+        // Get user game ID lists from API response data.
+        getIDArrayFromCollection(collectionData);
+        getIDArrayFromCollection(wishListData, "wishList");
+        getIDArrayFromCollection(wantToPlayData, "wantToPlayList");
+        // Add play IDs to inclusive ID list.
+        gameIDSet.add(...playsIDs);     
+        
+        // User array of game IDs is used to request detailed game information from BGG.
+        const userGames = await getGameData(gameIDSet);
 
-    // User array of game IDs is used to request detailed game information from BGG.
-    const userGames = await getGameData(gameIDSet);
+        // If for a User type request, convert ID sets to sorted arrays and then return all required data in an object.
+        const userCollectionIDs = [...userCollectionIDSet].sort((a,b) => a-b);
+        const userWishListIDs = [...userWishListIDSet].sort((a,b) => a-b);
+        const userWantToPlayListIDs = [...userWantToPlayListIDSet].sort((a,b) => a-b);
 
-    if (mode == "collection") return gameData;
+        // // NOT CURRENTLY IN USE
+        // // Creates lists of game IDs for the categories, mechanics, and families present in the user's game collection.
+        // const userCollectionGameList = userGames.filter(g => userCollectionIDs.includes(g._attributes.id));
+        // const {categories, mechanics, families} = parseLinkData(userCollectionGameList);
 
-    const userCollectionIDs = [...userCollectionIDSet].sort((a,b) => a-b);
-    const userWishListIDs = [...userWishListIDSet].sort((a,b) => a-b);
-    const userWantToPlayListIDs = [...userWantToPlayListIDSet].sort((a,b) => a-b);
+        return { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs };
+        }
 
-    return { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs };
 };
 
 module.exports =  getCollectionData;

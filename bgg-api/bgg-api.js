@@ -98,7 +98,7 @@ class GameNightBGGHelperAPI {
   /** Get data for one or more games. */
 
   static async getGameData(id) {
-    console.debug('Requesting detailed game/s data.');
+    console.debug('Requesting detailed game data.');
     let res = await this.request(`thing?id=${id}&stats=1`);
     return res.data;
   }

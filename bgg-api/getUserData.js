@@ -4,7 +4,6 @@ const { xml2json } = require("xml-js");
 
 const GameNightBGGHelperAPI = require("./bgg-api");
 const getCollectionData = require("./getGameData");
-// const parseLinkData = require("./bggUserDataParser");
 
 const getBGGUserData = async (bggUsername) => {
 
@@ -18,7 +17,7 @@ const getBGGUserData = async (bggUsername) => {
     const userDetails = JSON.parse(xml2json(userDataRes, { compact: true, spaces: 2 }));
 
     // userPlays provides data for the BGG user's logged plays.
-    // userPlays is also used to provide an array of game IDs for the user's logged plays.
+    // userPlays is also used to provide an array of game IDs for the user's logged plays for use in getCollectionData.
     const userPlays = JSON.parse(xml2json(userPlaysData, { compact: true, spaces: 2 }));
     const userPlayIDset = new Set();
     if (userPlays.plays._attributes.total !== "0") {
@@ -29,7 +28,7 @@ const getBGGUserData = async (bggUsername) => {
     // Make a get request for game data as a User Request. Returns game data as well as game ID lists for the user.
     const { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs } = await getCollectionData(bggUsername, "user", userPlayIDs)
 
-    let bggUser = {
+    const bggUser = {
         userDetails,
         userGames,
         userCollectionIDs,
@@ -37,17 +36,6 @@ const getBGGUserData = async (bggUsername) => {
         userWantToPlayListIDs,        
         userPlays
     };
-
-    // Not currently used. Logs to console some basic statistics for a game collection.
-    // if (userGames && userCollectionIDs) {
-    //     const userCollectionGameList = userGames.filter(g => userCollectionIDs.includes(g._attributes.id));
-    //     const userCollectionDemographics = parseLinkData(userCollectionGameList);
-    //     console.log(userCollectionDemographics)
-    //     bggUser['userCollectionDemographics'] = userCollectionDemographics;
-    // }
-
-    // Add user data to localStorage.
-    // bggUserToLocal(bggUser);
     
     return(bggUser);
 };
