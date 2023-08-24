@@ -30,10 +30,10 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
     const userWantToPlayListIDSet = new Set();
     
     // Helper function for iterating through a collection request (any type) response and adding IDs to corresponding ID sets.
-    function getIDArrayFromCollection(collectionData, type="collection") {
-        // const collectionData = JSON.parse(
-        //     convert.xml2json(res, { compact: true, spaces: 2 })
-        // );
+    function getIDArrayFromCollection(res, type="collection") {
+        const collectionData = JSON.parse(
+            convert.xml2json(res, { compact: true, spaces: 2 })
+        );
         if (Array.isArray(collectionData.items.item)) {
             Object.values(collectionData.items.item).map(g => {
                 gameIDSet.add(g._attributes.objectid)
@@ -47,13 +47,13 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
     // Handle request for collection type request.
     if (mode === "collection") {
         const res = await GameNightBGGHelperAPI.getCollection(bggUsername);
-        getIDArrayFromCollection(res);
+        getIDArrayFromCollection(res.data);
 
         // User array of game IDs is used to request detailed game information from BGG.
-        const collectionData = await getGameData(gameIDSet);
+        const userGames = await getGameData(gameIDSet);
 
         // If for a Collection type request gameData can be returned alone.
-        return collectionData;
+        return userGames;
     }
 
     // User requests get game data for the user's collection as well as other potential lists of games relevant to that user.
@@ -63,20 +63,11 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
             GameNightBGGHelperAPI.getCollection(bggUsername), 
             GameNightBGGHelperAPI.getCollection(bggUsername, "wishList"), 
             GameNightBGGHelperAPI.getCollection(bggUsername, "wantToPlayList"), 
-        ])
-        const collectionData = JSON.parse(
-            convert.xml2json(collectionRes, { compact: true, spaces: 2 })
-        );
-        const wishListData = JSON.parse(
-            convert.xml2json(wishListRes, { compact: true, spaces: 2 })
-        );
-        const wantToPlayData = JSON.parse(
-            convert.xml2json(wantToPlayRes, { compact: true, spaces: 2 })
-        );                
+        ])         
         // Get user game ID lists from API response data.
-        getIDArrayFromCollection(collectionData);
-        getIDArrayFromCollection(wishListData, "wishList");
-        getIDArrayFromCollection(wantToPlayData, "wantToPlayList");
+        getIDArrayFromCollection(collectionRes.data);
+        getIDArrayFromCollection(wishListRes.data, "wishList");
+        getIDArrayFromCollection(wantToPlayRes.data, "wantToPlayList");
         // Add play IDs to inclusive ID list.
         gameIDSet.add(...playsIDs);     
         

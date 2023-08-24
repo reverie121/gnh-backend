@@ -29,12 +29,12 @@ const getBGGUserData = async (bggUsername) => {
     const { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs } = await getCollectionData(bggUsername, "user", userPlayIDs)
 
     const bggUser = {
-        userDetails,
+        userDetails: userDetails.user,
         userGames,
         userCollectionIDs,
         userWishListIDs,
         userWantToPlayListIDs,        
-        userPlays
+        userPlays: userPlays.plays
     };
     
     return(bggUser);

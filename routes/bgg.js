@@ -3,9 +3,6 @@
 /** Routes for Board Game Geek (external) data. */
 
 const express = require("express");
-const jsonschema = require("jsonschema");
-
-const { BadRequestError } = require("../expressError");
 
 const getCollectionData = require("../bgg-api/getGameData");
 const getBGGUserData = require("../bgg-api/getUserData")
@@ -16,6 +13,13 @@ const getBGGUserData = require("../bgg-api/getUserData")
 
 const router = express.Router();
 
+/** GET / => { collection: [ {_attributes, thumbnail, image, name, description,yearpublished, minplayers, maxplayers, poll, playingtime, minplaytime, maxplaytime, minage, link, statistics}, ... ] }
+ *
+ * Returns list of game data for a BGG user.
+ *
+ * Authorization required: none
+ **/
+
 router.get("/collection/:bggUsername", async function(req, res, next) {
     try {
         const collection = await getCollectionData(req.params.bggUsername);
@@ -24,6 +28,20 @@ router.get("/collection/:bggUsername", async function(req, res, next) {
         return next(err);
       }
 });
+
+/** GET / => { userData: {
+ *              userDetails: {_attributes, firstname, lastname, avatarlink, yearregistered, lastlogin, stateorprovince, country, webaddress, xboxaccount, wiiaccount, psnaccount, battlenetaccount, steamaccount, traderating, buddies, guilds}, 
+                userGames: [ {_attributes, thumbnail, image, name, description, yearpublished, minplayers, maxplayers, poll, playingtime, minplaytime, maxplaytime, minage, link, statistics}, ... ], 
+                userCollectionIDs: [ #, ... ], 
+                userWishListIDs: [ #, ... ], 
+                userWantToPlayIDs: [ #, ... ], 
+                userPlays: [ {_attributes: {}, play: {}/[]}, ... ]
+ *            } }
+ *
+ * Returns comprehensive user data for a BGG user.
+ *
+ * Authorization required: none
+ **/
 
 router.get("/user/:bggUsername", async function(req, res, next) {
   try {
