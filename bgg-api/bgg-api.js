@@ -46,11 +46,11 @@ class GameNightBGGHelperAPI {
         if (res.status !== 202) {
             if (res.status === 200) {
                 console.debug(`Collection (type ${type}) data received.`)
-                return res;
+                return res.data;
             } else {
                 // What might this be???
                 console.debug(res);
-                return res;
+                return res.data;
             }
         } 
         // If request has been made but is still in queue, status code will be 202. We should delay and then send the request again.

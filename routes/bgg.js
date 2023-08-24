@@ -8,6 +8,7 @@ const jsonschema = require("jsonschema");
 const { BadRequestError } = require("../expressError");
 
 const getCollectionData = require("../bgg-api/getGameData");
+const getBGGUserData = require("../bgg-api/getUserData")
 
 // const User = require("../models/user");
 // const userNewSchema = require("../schemas/userNew.json");
@@ -26,7 +27,7 @@ router.get("/collection/:bggUsername", async function(req, res, next) {
 
 router.get("/user/:bggUsername", async function(req, res, next) {
   try {
-      const userData = await getCollectionData(req.params.bggUsername, "user");
+      const userData = await getBGGUserData(req.params.bggUsername);
       return res.json({ userData });
     } catch (err) {
       return next(err);
