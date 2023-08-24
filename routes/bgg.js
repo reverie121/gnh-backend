@@ -24,5 +24,13 @@ router.get("/collection/:bggUsername", async function(req, res, next) {
       }
 });
 
+router.get("/user/:bggUsername", async function(req, res, next) {
+  try {
+      const userData = await getCollectionData(req.params.bggUsername, "user");
+      return res.json({ userData });
+    } catch (err) {
+      return next(err);
+    }
+});
 
 module.exports = router;

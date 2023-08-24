@@ -20,7 +20,7 @@ const getGameData = async (gameIDArray) => {
 
 // Makes multiple get requests to BGG API to get game data for a collection or user. Collection requests provide limited game data, so a follow-up game request is required using IDs from the collection/s.
 // Process: One or more collection requests => make list of game IDs => request for data for all games from list.
-const getCollectionData = async (bggUsername, mode="collection", playsIDs) => {
+const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) => {
 
     let gameIDArray = [];
     
@@ -37,20 +37,18 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs) => {
     if (mode === "user") {
         const [ collectionRes, WishlistRes, WantToPlayRes ] = await Promise.all([
             GameNightBGGHelperAPI.getCollection(bggUsername), 
-            GameNightBGGHelperAPI.getWishlist(bggUsername), 
-            GameNightBGGHelperAPI.getWantToPlayList(bggUsername), 
+            GameNightBGGHelperAPI.getCollection(bggUsername, "wishList"), 
+            GameNightBGGHelperAPI.getCollection(bggUsername, "wantToPlayList"), 
         ])
-        getIDArrayFromCollection(collectionRes);
-        getIDArrayFromCollection(WishlistRes);
-        getIDArrayFromCollection(WantToPlayRes);
+        getIDArrayFromCollection(collectionRes.data);
+        getIDArrayFromCollection(WishlistRes.data);
+        getIDArrayFromCollection(WantToPlayRes.data);
         gameIDArray.push(...playsIDs);                   
     }
     // If not a user request, make simple request for collection data.
     else {
         const res = await GameNightBGGHelperAPI.getCollection(bggUsername);
-        console.log('inside getCollectionData')
-        console.log(res)
-        getIDArrayFromCollection(res);
+        getIDArrayFromCollection(res.data);
     }
 
     // User array of game IDs is used to request detailed game information from BGG.

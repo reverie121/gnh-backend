@@ -27,72 +27,57 @@ class GameNightBGGHelperAPI {
 
   // COLLECTION API Routes
 
-  /** Get a collection. */
+  /** Get a collection (any type). */
 
-  static async getCollection(username, res={}) {
+  static async getCollection(username, type='collection', tries=0, res={}) {
+    // Determine substring for type of collection request.
+    let subString = '&own=1';
+    if (type === 'wishList') subString = '&wishlist=1';
+    else if (type === 'wantToPlayList') subString = '&wanttoplay=1';
+    // Get the complete request string.
+    const requestString = `collection?username=${username}&excludesubtype=boardgameexpansion&brief=1${subString}`
+    // Increment a "tries" counter to reflect the number of the current request attempt for this collection.
+    tries++;
+    // BGG API will return status code 429 on the 7th attempt. What to do instead of 7th attempt?
+    if (tries > 6) return console.log("too many tries!!!");
 
-    console.log('******************')
-    console.log('Inside getCollection')
     if (res.status) {
-        console.log(res.status)
         // Base Case:
         if (res.status !== 202) {
             if (res.status === 200) {
-                console.log('status code 200')
-                return res.data;
+                console.debug(`Collection (type ${type}) data received.`)
+                return res;
             } else {
-                console.log('status code not 200 or 202')
-                console.log(res)
+                // What might this be???
+                console.debug(res);
                 return res;
             }
         } 
-        // If request has been made but is still in queue, status code will be 202.
+        // If request has been made but is still in queue, status code will be 202. We should delay and then send the request again.
         else if (res.status === 202) {
-            setTimeout(async () => {
-                console.log('Response in queue. Repeating request after 5 seconds.');
-                res = await this.request(`collection?username=${username}&excludesubtype=boardgameexpansion&own=1`);
-                return await this.getCollection(username, res);
-            }, 5000)
+            // Helper function to implement a delay.
+            function delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            console.debug(`Response in queue. Repeating request after ${tries*2} seconds.`);
+            // Set delay equal to the current attempt (#) * 2 seconds and await delay.
+            const msDelay = tries*2000
+            await delay(msDelay);
+            // Make new request to BGG API, overwriting the res variable.
+            res = await this.request(requestString);
+            // Call this function again with the updated res.
+            return await this.getCollection(username, type, tries, res);
         }
     }
     // When initially called res will be an empty object.
     else {
-        // Make initial request to BGG API
-        console.log('Making initial request for collection.')
-        res = await this.request(`collection?username=${username}&excludesubtype=boardgameexpansion&own=1`);
-        return await this.getCollection(username, res);
+        console.debug('Making initial request for collection.')
+        // Make initial request to BGG API, overwriting the empty res object.
+        res = await this.request(requestString);
+        // Call this function again with the updated res.
+        return await this.getCollection(username, type, tries, res);
     }
   }
-
-  /** Get a wishlist. */
-
-  static async getWishlist(username) {
-    let res = await this.request(`collection?username=${username}&excludesubtype=boardgameexpansion&wishlist=1`);
-    if (res.status === 202) {
-      setTimeout(() => {
-        console.debug('Response in queue. Repeating request after 1 second.');
-        this.getCollection(username);
-      }, 20000)
-    } else {
-      console.debug('Wishlist data received.')
-      return res.data;
-    }
-  }  
-
-  /** Get a want-to-play list. */
-
-  static async getWantToPlayList(username) {
-    let res = await this.request(`collection?username=${username}&excludesubtype=boardgameexpansion&wanttoplay=1`);
-    if (res.status === 202) {
-      setTimeout(() => {
-        console.debug('Response in queue. Repeating request after 1 second.');
-        this.getCollection(username);
-      }, 20000)
-    } else {
-      console.debug('Wishlist data received.')
-      return res.data;
-    }
-  }  
 
   /** Get a user. */
 
