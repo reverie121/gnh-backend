@@ -1,6 +1,9 @@
 const convert = require("xml-js");
 
 const GameNightBGGHelperAPI = require("./bgg-api");
+
+const { computePlayerCount, computePlayerAge } = require("./gameDataHelpers");
+
 // const parseLinkData = require("./bggUserDataParser");
 
 // Makes an API get request to BGG API for data for multiple games. Takes an array of game IDs as input and returns an arrat of game data.
@@ -14,7 +17,7 @@ const getGameData = async (gameIDSet) => {
     const data = JSON.parse(
         convert.xml2json(res, { compact: true, spaces: 2 })
     );
-    const gameData = data.items.item
+    const gameData = data.items.item;
 
     return gameData;
 }
@@ -23,34 +26,79 @@ const getGameData = async (gameIDSet) => {
 // Process: One or more collection requests => make list of game IDs => request for data for all games from list.
 const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) => {
 
-    // Initialize Sets for user's game ID lists.
+    // Initialize a set to hold the game IDs for every game in the user's collection, to be used for a follow-up game query.
     const gameIDSet = new Set();
-    const userCollectionIDSet = new Set();
-    const userWishListIDSet = new Set();
-    const userWantToPlayListIDSet = new Set();
+    // Initialize arrays for user's categorical game ID lists.
+    const userCollectionIDs = [];
+    const userPreviouslyOwnedIDs = [];
+    const userForTradeIDs = [];
+    const userWantIDs = [];
+    const userWantToPlayIDs = [];
+    const userWantToBuyIDs = [];
+    const userPreOrderedIDs = [];    
+    // Initialize array to hold extracted collection item data.
+    const userWishListData = [];
+    const collectionItemsData = [];    
     
     // Helper function for iterating through a collection request (any type) response and adding IDs to corresponding ID sets.
-    function getIDArrayFromCollection(res, type="collection") {
+    function extractDataFromCollection(res) {
+        // Convert data from XML to JSON.
         const collectionData = JSON.parse(
             convert.xml2json(res, { compact: true, spaces: 2 })
         );
-        if (Array.isArray(collectionData.items.item)) {
-            Object.values(collectionData.items.item).map(g => {
-                gameIDSet.add(g._attributes.objectid)
-                if (type == "collection") userCollectionIDSet.add(g._attributes.objectid)
-                else if (type == "wishList") userWishListIDSet.add(g._attributes.objectid)
-                else if (type == "wantToPlayList") userWantToPlayListIDSet.add(g._attributes.objectid)
-            });
+
+        // Helper function to extract data from a game.
+        function extractDataFromGame(g) {
+            // Add game ID to set of all IDs for upcoming game data request.
+            gameIDSet.add(g._attributes.objectid);
+
+            if (mode === "user") {
+                // Add game ID to applicable categorical game ID lists.
+                if (g.status._attributes.own == "1") userCollectionIDs.push(g._attributes.objectid)
+                if (g.status._attributes.prevowned == "1") userPreviouslyOwnedIDs.push(g._attributes.objectid)     
+                if (g.status._attributes.fortrade == "1") userForTradeIDs.push(g._attributes.objectid) 
+                if (g.status._attributes.want == "1") userWantIDs.push(g._attributes.objectid) 
+                if (g.status._attributes.wantoplay == "1") userWantToPlayIDs.push(g._attributes.objectid) 
+                if (g.status._attributes.wanttobuy == "1") userWantToBuyIDs.push(g._attributes.objectid)         
+                if (g.status._attributes.preordered == "1") userPreOrderedIDs.push(g._attributes.objectid)  
+                // Wishlist data will be stored as an array of arrays.
+                // [[game ID, Wishlist Priority], ...]
+                if (g.status._attributes.wishlist == "1") {
+                    userWishListData.push([g._attributes.objectid, g.status._attributes.wishlistpriority])
+                }
+                // Extract additional data...
+                const collectionItemData = {
+                    id: g._attributes.objectid,
+                    numPlays: g.numplays._text
+                }
+                if (g.stats.rating._attributes.value != "N/A") collectionItemData["userRating"] = g.stats.rating._attributes.value;
+                if (g.comment) collectionItemData["comments"] = g.comment._text;
+                // Add additional extracted data to data array.
+                collectionItemsData.push(collectionItemData)
+            }
         }
+
+        if (Array.isArray(collectionData.items.item)) {
+            console.debug("Extracting collection data from collection response.")            
+            Object.values(collectionData.items.item).map(g => {
+                extractDataFromGame(g);
+            });
+        } else extractDataFromGame(collectionData.items.item);
     }
     
     // Handle request for collection type request.
     if (mode === "collection") {
         const res = await GameNightBGGHelperAPI.getCollection(bggUsername);
-        getIDArrayFromCollection(res.data);
+        extractDataFromCollection(res.data);
 
         // User array of game IDs is used to request detailed game information from BGG.
         const userGames = await getGameData(gameIDSet);
+
+        for (const game of userGames) {
+            // Add poll result summary data to games.
+            if (Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
+            if (Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
+        }
 
         // If for a Collection type request gameData can be returned alone.
         return userGames;
@@ -59,32 +107,62 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
     // User requests get game data for the user's collection as well as other potential lists of games relevant to that user.
     else if (mode === "user") {
         // Make requests to BGG API.
-        const [ collectionRes, wishListRes, wantToPlayRes ] = await Promise.all([
-            GameNightBGGHelperAPI.getCollection(bggUsername), 
-            GameNightBGGHelperAPI.getCollection(bggUsername, "wishList"), 
-            GameNightBGGHelperAPI.getCollection(bggUsername, "wantToPlayList"), 
-        ])         
-        // Get user game ID lists from API response data.
-        getIDArrayFromCollection(collectionRes.data);
-        getIDArrayFromCollection(wishListRes.data, "wishList");
-        getIDArrayFromCollection(wantToPlayRes.data, "wantToPlayList");
-        // Add play IDs to inclusive ID list.
-        gameIDSet.add(...playsIDs);     
-        
-        // User array of game IDs is used to request detailed game information from BGG.
-        const userGames = await getGameData(gameIDSet);
+        const res = await GameNightBGGHelperAPI.getCollection(bggUsername, "user");
 
-        // If for a User type request, convert ID sets to sorted arrays and then return all required data in an object.
-        const userCollectionIDs = [...userCollectionIDSet].sort((a,b) => a-b);
-        const userWishListIDs = [...userWishListIDSet].sort((a,b) => a-b);
-        const userWantToPlayListIDs = [...userWantToPlayListIDSet].sort((a,b) => a-b);
+        // Get collection-specific data for games.
+        extractDataFromCollection(res.data);
 
-        // // NOT CURRENTLY IN USE
+        // Add (logged) play IDs for user to inclusive ID list.
+        for (const id of playsIDs) {
+            gameIDSet.add(id);
+        }
+
+        // User's array of game IDs is used to request detailed game information from BGG.
+        let userGames = await getGameData(gameIDSet);
+
+        // Sort data arrays.
+        userWishListData.sort((a,b) => a[0]-b[0]);
+        collectionItemsData.sort((a,b) => a["id"]-b["id"]);          
+
+        // Helper function to find game data from collectionItemsData for a particular game ID.
+        function findCollectionItemData(gameID, dataToIntegrate) {
+            let lIndx = 0;
+            let rIndx = dataToIntegrate.length - 1;
+            let mIndx;
+            // Use divide & conquer to find the correct data to integrate, matching on game ID.
+            while (lIndx <= rIndx) {
+                if (dataToIntegrate[lIndx].id == gameID) return dataToIntegrate[lIndx];
+                else if (dataToIntegrate[rIndx].id == gameID) return dataToIntegrate[rIndx];
+
+                mIndx = Math.floor((lIndx + rIndx) / 2);
+                if (dataToIntegrate[mIndx].id == gameID) return dataToIntegrate[mIndx];
+                else {
+                    if (Number(dataToIntegrate[mIndx].id) > Number(gameID)) rIndx = mIndx - 1;
+                    else lIndx = mIndx + 1;
+                }
+            }            
+        }
+        // Integrate collectionItemsData with userGames and add poll result summary data.
+        for (const game of userGames) {
+            // Add poll result summary data to games.
+            if (Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
+            if (Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
+            
+            // Find collection item data for the current game.
+            const d = findCollectionItemData(game._attributes.id, collectionItemsData);
+            // Add collection item data to game object.
+            if (d) game.collectionData = d;
+            // Remove id from collectionData within the game object now that it is no longer required.
+            // ***This is disabled because it was causing an error.
+            // if (game.collectionData.id) delete game.collectionData.id;
+        }
+
+        // // ***NOT CURRENTLY IN USE
         // // Creates lists of game IDs for the categories, mechanics, and families present in the user's game collection.
         // const userCollectionGameList = userGames.filter(g => userCollectionIDs.includes(g._attributes.id));
         // const {categories, mechanics, families} = parseLinkData(userCollectionGameList);
 
-        return { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs };
+        return { userGames, userCollectionIDs, userPreviouslyOwnedIDs, userForTradeIDs, userWantIDs, userWantToPlayIDs, userWantToBuyIDs, userPreOrderedIDs, userWishListData };
         }
 
 };
