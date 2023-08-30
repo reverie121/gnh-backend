@@ -27,15 +27,13 @@ class GameNightBGGHelperAPI {
 
   // COLLECTION API Routes
 
-  /** Get a collection (any type). */
+  /** Get a collection. */
 
   static async getCollection(username, type='collection', tries=0, res={}) {
-    // Determine substring for type of collection request.
-    let subString = '&own=1';
-    if (type === 'wishList') subString = '&wishlist=1';
-    else if (type === 'wantToPlayList') subString = '&wanttoplay=1';
-    // Get the complete request string.
-    const requestString = `collection?username=${username}&excludesubtype=boardgameexpansion&brief=1${subString}`
+
+    let requestString = `collection?username=${username}&excludesubtype=boardgameexpansion&stats=1`
+    if (type=="collection") requestString = requestString + "&own=1";
+
     // Increment a "tries" counter to reflect the number of the current request attempt for this collection.
     tries++;
     // BGG API will return status code 429 on the 7th attempt. What to do instead of 7th attempt?

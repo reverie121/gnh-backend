@@ -18,23 +18,35 @@ const getBGGUserData = async (bggUsername) => {
 
     // userPlays provides data for the BGG user's logged plays.
     // userPlays is also used to provide an array of game IDs for the user's logged plays for use in getCollectionData.
-    const userPlays = JSON.parse(xml2json(userPlaysData, { compact: true, spaces: 2 }));
-    const userPlayIDset = new Set();
-    if (userPlays.plays._attributes.total !== "0") {
-        Object.values(userPlays.plays.play.map(p => userPlayIDset.add(p.item._attributes.objectid)));
+    const playsResponseObject = JSON.parse(xml2json(userPlaysData, { compact: true, spaces: 2 }));
+    const userPlayIDSet = new Set();
+    if (playsResponseObject.plays._attributes.total !== "0") {
+        Object.values(playsResponseObject.plays.play.map(p => userPlayIDSet.add(p.item._attributes.objectid)));
     }
-    const userPlayIDs = [...userPlayIDset].sort((a,b) => a-b);
+    const userPlayIDs = [...userPlayIDSet].sort((a,b) => a-b);
 
     // Make a get request for game data as a User Request. Returns game data as well as game ID lists for the user.
-    const { userGames, userCollectionIDs, userWishListIDs, userWantToPlayListIDs } = await getCollectionData(bggUsername, "user", userPlayIDs)
+    const { userGames, userCollectionIDs, userPreviouslyOwnedIDs, userForTradeIDs, userWantIDs, userWantToPlayIDs, userWantToBuyIDs, userPreOrderedIDs, userWishListData } = await getCollectionData(bggUsername, "user", userPlayIDs)
+
+    // Initialize userPlays object and add thumbnail src key object.
+    const userPlays = playsResponseObject.plays;
+    userPlays.thumbnailURLs = {};
+    for (const game of userGames) {
+        if (userPlayIDSet.has(game._attributes.id)) userPlays.thumbnailURLs[`${game._attributes.id}`] = game.thumbnail._text || "no image available";
+    }
 
     const bggUser = {
         userDetails: userDetails.user,
         userGames,
-        userCollectionIDs,
-        userWishListIDs,
-        userWantToPlayListIDs,        
-        userPlays: userPlays.plays
+        userCollectionIDs, 
+        userPreviouslyOwnedIDs, 
+        userForTradeIDs, 
+        userWantIDs, 
+        userWantToPlayIDs, 
+        userWantToBuyIDs,
+        userPreOrderedIDs, 
+        userWishListData,        
+        userPlays
     };
     
     return(bggUser);
