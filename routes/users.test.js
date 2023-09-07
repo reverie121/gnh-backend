@@ -39,6 +39,7 @@ describe("POST /users", function () {
     expect(resp.statusCode).toEqual(201);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u-new",
         firstName: "First-new",
         lastName: "Last-newL",
@@ -63,6 +64,7 @@ describe("POST /users", function () {
     expect(resp.statusCode).toEqual(201);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u-new",
         firstName: "First-new",
         lastName: "Last-newL",
@@ -137,6 +139,7 @@ describe("GET /users", function () {
     expect(resp.body).toEqual({
       users: [
         {
+          bggUsername: null,
           username: "u1",
           firstName: "U1F",
           lastName: "U1L",
@@ -144,6 +147,7 @@ describe("GET /users", function () {
           isAdmin: false,
         },
         {
+          bggUsername: null,
           username: "u2",
           firstName: "U2F",
           lastName: "U2L",
@@ -151,6 +155,7 @@ describe("GET /users", function () {
           isAdmin: false,
         },
         {
+          bggUsername: null,
           username: "u3",
           firstName: "U3F",
           lastName: "U3L",
@@ -195,6 +200,7 @@ describe("GET /users/:username", function () {
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u1",
         firstName: "U1F",
         lastName: "U1L",
@@ -210,6 +216,7 @@ describe("GET /users/:username", function () {
         .set("authorization", `Bearer ${u1Token}`);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u1",
         firstName: "U1F",
         lastName: "U1L",
@@ -252,6 +259,7 @@ describe("PATCH /users/:username", () => {
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u1",
         firstName: "New",
         lastName: "U1L",
@@ -270,6 +278,7 @@ describe("PATCH /users/:username", () => {
         .set("authorization", `Bearer ${u1Token}`);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u1",
         firstName: "New",
         lastName: "U1L",
@@ -327,6 +336,7 @@ describe("PATCH /users/:username", () => {
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.body).toEqual({
       user: {
+        bggUsername: null,
         username: "u1",
         firstName: "U1F",
         lastName: "U1L",

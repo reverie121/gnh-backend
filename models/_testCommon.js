@@ -8,6 +8,7 @@ async function commonBeforeAll() {
 
   // noinspection SqlWithoutWhere
   await db.query("DELETE FROM users");
+  await db.query("DELETE FROM quick_filters");
 
   await db.query(`
         INSERT INTO users(username,
@@ -22,6 +23,16 @@ async function commonBeforeAll() {
         await bcrypt.hash("password1", BCRYPT_WORK_FACTOR),
         await bcrypt.hash("password2", BCRYPT_WORK_FACTOR),
       ]);
+
+await db.query(`
+      INSERT INTO quick_filters(id,
+                        username,
+                        filter_name,
+                        filter_settings)
+      VALUES (1, 'u1', 'Good Games Only', '{"formData": {"gameRating": "7"}}'),
+             (2, 'u2', 'Two-Player Games', '{"formData": {"playerCount": "2"}, "checkboxes": {"playerCountBest": true, "playerCountRecommended": true}}')
+      RETURNING id`
+      );
 }
 
 async function commonBeforeEach() {
@@ -35,7 +46,6 @@ async function commonAfterEach() {
 async function commonAfterAll() {
   await db.end();
 }
-
 
 module.exports = {
   commonBeforeAll,

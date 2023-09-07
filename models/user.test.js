@@ -25,6 +25,7 @@ describe("authenticate", function () {
   test("works", async function () {
     const user = await User.authenticate("u1", "password1");
     expect(user).toEqual({
+      bggUsername: null,
       username: "u1",
       firstName: "U1F",
       lastName: "U1L",
@@ -56,6 +57,7 @@ describe("authenticate", function () {
 
 describe("register", function () {
   const newUser = {
+    bggUsername: null,
     username: "new",
     firstName: "Test",
     lastName: "Tester",
@@ -112,6 +114,7 @@ describe("findAll", function () {
     const users = await User.findAll();
     expect(users).toEqual([
       {
+        bggUsername: null,
         username: "u1",
         firstName: "U1F",
         lastName: "U1L",
@@ -119,6 +122,7 @@ describe("findAll", function () {
         isAdmin: false,
       },
       {
+        bggUsername: null,
         username: "u2",
         firstName: "U2F",
         lastName: "U2L",
@@ -135,6 +139,7 @@ describe("get", function () {
   test("works", async function () {
     let user = await User.get("u1");
     expect(user).toEqual({
+      bggUsername: null,
       username: "u1",
       firstName: "U1F",
       lastName: "U1L",
@@ -157,6 +162,7 @@ describe("get", function () {
 
 describe("update", function () {
   const updateData = {
+    bggUsername: null,
     firstName: "NewF",
     lastName: "NewF",
     email: "new@email.com",
@@ -176,6 +182,7 @@ describe("update", function () {
       password: "new",
     });
     expect(job).toEqual({
+      bggUsername: null,
       username: "u1",
       firstName: "U1F",
       lastName: "U1L",
