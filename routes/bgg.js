@@ -33,8 +33,13 @@ router.get("/collection/:bggUsername", async function(req, res, next) {
  *              userDetails: {_attributes, firstname, lastname, avatarlink, yearregistered, lastlogin, stateorprovince, country, webaddress, xboxaccount, wiiaccount, psnaccount, battlenetaccount, steamaccount, traderating, buddies, guilds}, 
                 userGames: [ {_attributes, thumbnail, image, name, description, yearpublished, minplayers, maxplayers, poll, playingtime, minplaytime, maxplaytime, minage, link, statistics}, ... ], 
                 userCollectionIDs: [ #, ... ], 
-                userWishListIDs: [ #, ... ], 
+                userPreviouslyOwnedIDs: [ #, ... ], 
+                userForTradeIDs: [ #, ... ], 
+                userWantIDs: [ #, ... ], 
                 userWantToPlayIDs: [ #, ... ], 
+                userWantToBuyIDs: [ #, ... ],
+                userPreOrderedIDs: [ #, ... ], 
+                userWishListData: [ [game ID, Wishlist Priority], ... ],       
                 userPlays: [ {_attributes: {}, play: {}/[]}, ... ]
  *            } }
  *

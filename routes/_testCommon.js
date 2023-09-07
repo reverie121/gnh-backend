@@ -2,14 +2,13 @@
 
 const db = require("../db.js");
 const User = require("../models/user");
+const QuickFilter = require("../models/quickFilter.js");
 const { createToken } = require("../helpers/tokens");
 
 
 async function commonBeforeAll() {
   // noinspection SqlWithoutWhere
   await db.query("DELETE FROM users");
-  // noinspection SqlWithoutWhere
-  await db.query("DELETE FROM companies");
 
   await User.register({
     username: "u1",
@@ -34,6 +33,17 @@ async function commonBeforeAll() {
     email: "user3@user.com",
     password: "password3",
     isAdmin: false,
+  });
+
+  await QuickFilter.add({
+    username: "u1",
+    filterName: "Good Games Only",
+    filterSettings: '{"formData": {"gameRating": "7"}}',
+  });
+  await QuickFilter.add({
+    username: "u2",
+    filterName: "Two-Player Games",
+    filterSettings: '{"formData": {"playerCount": "2"}, "checkboxes": {"playerCountBest": true, "playerCountRecommended": true}}',
   });
 
 }
