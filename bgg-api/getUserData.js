@@ -16,7 +16,10 @@ const getBGGUserData = async (bggUsername) => {
 
     // If user data is stored in redis then return it without making external API calls.
     const cacheduserData = await redisClient.get(`user_${bggUsername}`)
-    if (cacheduserData !== null) return JSON.parse(cacheduserData)
+    if (cacheduserData !== null) {
+        console.log(`Returning cached user data for ${bggUsername}`)
+        return JSON.parse(cacheduserData)
+    }
 
     // Make initial get requests to BGG API for user data.
     const [ userDataRes, userPlaysData ] = await Promise.all([
