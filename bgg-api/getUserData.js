@@ -1,11 +1,22 @@
 // Gets comprehensive data for a BGG user from BGG.
 
 const { xml2json } = require("xml-js");
+const redis = require("redis");
 
 const GameNightBGGHelperAPI = require("./bgg-api");
 const getCollectionData = require("./getGameData");
 
 const getBGGUserData = async (bggUsername) => {
+
+    // Set up and connect to redis client.
+    const redisClient = redis.createClient();
+    const defaultExp = 3600;
+    redisClient.on("error", (error) => console.error(`Error : ${error}`));
+    await redisClient.connect();
+
+    // If user data is stored in redis then return it without making external API calls.
+    const cacheduserData = await redisClient.get(`user_${bggUsername}`)
+    if (cacheduserData !== null) return JSON.parse(cacheduserData)
 
     // Make initial get requests to BGG API for user data.
     const [ userDataRes, userPlaysData ] = await Promise.all([
@@ -35,6 +46,7 @@ const getBGGUserData = async (bggUsername) => {
         if (userPlayIDSet.has(game._attributes.id)) userPlays.thumbnailURLs[`${game._attributes.id}`] = game.thumbnail._text || "no image available";
     }
 
+    // Assemble user data object.
     const bggUser = {
         userDetails: userDetails.user,
         userGames,
@@ -49,6 +61,9 @@ const getBGGUserData = async (bggUsername) => {
         userPlays
     };
     
+    // Store user data in redis.
+    redisClient.setEx(`user_${bggUsername}`, defaultExp, JSON.stringify(bggUser));
+
     return(bggUser);
 };
 
