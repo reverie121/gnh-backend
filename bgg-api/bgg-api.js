@@ -1,4 +1,5 @@
 const axios = require("axios");
+const convert = require("xml-js");
 
 const BASE_URL = process.env.REACT_APP_BASE_URL || "https://boardgamegeek.com/xmlapi2";
 
@@ -20,8 +21,9 @@ class GameNightBGGHelperAPI {
       return await axios({ url, method });
     } catch (err) {
       console.error("API Error:", err.response);
-      let message = err.response.data.error.message;
-      throw Array.isArray(message) ? message : [message];
+      let data = convert.xml2js(err.response.data, { compact: true, spaces: 2 });
+      let message = data.error.message._text;
+      throw { status: err.response.status, message }
     }
   }
 

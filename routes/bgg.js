@@ -4,7 +4,7 @@
 
 const express = require("express");
 
-const getCollectionData = require("../bgg-api/getGameData");
+const getBGGCollectionData = require("../bgg-api/getBGGCollectionData")
 const getBGGUserData = require("../bgg-api/getUserData")
 
 // const User = require("../models/user");
@@ -22,7 +22,7 @@ const router = express.Router();
 
 router.get("/collection/:bggUsername", async function(req, res, next) {
     try {
-        const collection = await getCollectionData(req.params.bggUsername);
+        const collection = await getBGGCollectionData(req.params.bggUsername)
         return res.json({ collection });
       } catch (err) {
         return next(err);
