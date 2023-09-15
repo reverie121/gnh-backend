@@ -1,6 +1,8 @@
 const axios = require("axios");
 const convert = require("xml-js");
 
+const getTopIdString = require("./top100Scraper");
+
 const BASE_URL = process.env.REACT_APP_BASE_URL || "https://boardgamegeek.com/xmlapi2";
 
 /** API Class.
@@ -99,6 +101,15 @@ class GameNightBGGHelperAPI {
   static async getGameData(id) {
     console.debug('Requesting detailed game data.');
     let res = await this.request(`thing?id=${id}&stats=1`);
+    return res.data;
+  }
+
+  /** Get data for the top 100 ranked games. */
+
+  static async getTop100() {
+    console.debug('Requesting Top 100 game data.');
+    const idString = await getTopIdString();
+    let res = await this.request(`thing?id=${idString}&stats=1`);
     return res.data;
   }
 
