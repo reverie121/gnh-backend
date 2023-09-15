@@ -15,10 +15,10 @@ const getBGGUserData = async (bggUsername) => {
     await redisClient.connect();
 
     // If user data is stored in redis then return it without making external API calls.
-    const cacheduserData = await redisClient.get(`user_${bggUsername}`)
-    if (cacheduserData !== null) {
+    const cachedUserData = await redisClient.get(`user-${bggUsername}`)
+    if (cachedUserData !== null) {
         console.log(`Returning cached user data for ${bggUsername}`)
-        return JSON.parse(cacheduserData)
+        return JSON.parse(cachedUserData)
     }
 
     // Make initial get requests to BGG API for user data.
@@ -65,7 +65,7 @@ const getBGGUserData = async (bggUsername) => {
     };
     
     // Store user data in redis.
-    redisClient.setEx(`user_${bggUsername}`, defaultExp, JSON.stringify(bggUser));
+    redisClient.setEx(`user-${bggUsername}`, defaultExp, JSON.stringify(bggUser));
 
     return(bggUser);
 };
