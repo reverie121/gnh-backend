@@ -7,6 +7,7 @@ const express = require("express");
 const getBGGCollectionData = require("../bgg-api/getBGGCollectionData")
 const getBGGUserData = require("../bgg-api/getUserData")
 const getTop100 = require("../bgg-api/getTop100");
+const getHot50 = require("../bgg-api/getHot50")
 
 // const User = require("../models/user");
 // const userNewSchema = require("../schemas/userNew.json");
@@ -64,6 +65,15 @@ router.get("/top100", async function(req, res, next) {
   try {
     const top100Data = await getTop100();
     return res.json(top100Data);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get("/hot50", async function(req, res, next) {
+  try {
+    const hot50Data = await getHot50();
+    return res.json(hot50Data);
   } catch (err) {
     return next(err);
   }

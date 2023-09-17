@@ -113,6 +113,14 @@ class GameNightBGGHelperAPI {
     return res.data;
   }
 
+  /** Get data for the 50 hottest (most active) games. */
+
+  static async getHot50() {
+    console.debug('Requesting Hot 50 game data.');
+    let res = await this.request(`hot?type=boardgame`);
+    return res.data;
+  }
+
 }
 
 module.exports = GameNightBGGHelperAPI;

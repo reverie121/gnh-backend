@@ -8,12 +8,12 @@ const getTop100 = async () => {
 
     // Set up and connect to redis client.
     const redisClient = redis.createClient();
-    const defaultExp = (3600*3);
+    const defaultExp = (3600*12);
     redisClient.on("error", (error) => console.error(`Error : ${error}`));
     await redisClient.connect();
 
     // If user data is stored in redis then return it without making external API calls.
-    const cachedTop100 = await redisClient.get(`top100`)
+    const cachedTop100 = await redisClient.get(`top-100`)
     if (cachedTop100 !== null) {
         console.log(`Returning cached data for Top 100 Games`)
         return JSON.parse(cachedTop100)
@@ -31,7 +31,7 @@ const getTop100 = async () => {
     }
 
     // Store Top 100 game data in redis.
-    redisClient.setEx(`top100`, defaultExp, JSON.stringify(top100Games));
+    redisClient.setEx(`top-100`, defaultExp, JSON.stringify(top100Games));
 
     return top100Games;
 }
