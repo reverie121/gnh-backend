@@ -96,8 +96,8 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
 
         for (const game of userGames) {
             // Add poll result summary data to games.
-            if (Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
-            if (Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
+            if (Array.isArray(game.poll) && Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
+            if (Array.isArray(game.poll) && Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
         }
 
         // If for a Collection type request gameData can be returned alone.
