@@ -47,6 +47,9 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
             convert.xml2json(res, { compact: true, spaces: 2 })
         );
 
+        // Do nothing (return undefined) if there are no games in the user's collection.
+        if (collectionData.items._attributes.totalitems === "0") return undefined;
+
         // Helper function to extract data from a game.
         function extractDataFromGame(g) {
             // Add game ID to set of all IDs for upcoming game data request.
@@ -85,6 +88,23 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
             });
         } else extractDataFromGame(collectionData.items.item);
     }
+
+    // Helper function for integrating data with user games.
+    function integrateGameData(game, mode) {
+        // Add poll result summary data to games.
+        if (Array.isArray(game.poll) && Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
+        if (Array.isArray(game.poll) && Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
+
+        if (mode == "user") {
+            // Find collection item data for the current game.
+            const d = findCollectionItemData(game._attributes.id, collectionItemsData);
+            // Add collection item data to game object.
+            if (d) game.collectionData = d;
+            // Remove id from collectionData within the game object now that it is no longer required.
+            // ***This is disabled because it was causing an error.
+            // if (game.collectionData.id) delete game.collectionData.id;            
+        }
+    }
     
     // Handle request for collection type request.
     if (mode === "collection") {
@@ -95,9 +115,7 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
         const userGames = await getGameData(gameIDSet);
 
         for (const game of userGames) {
-            // Add poll result summary data to games.
-            if (Array.isArray(game.poll) && Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
-            if (Array.isArray(game.poll) && Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
+            integrateGameData(game);
         }
 
         // If for a Collection type request gameData can be returned alone.
@@ -142,19 +160,13 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
                 }
             }            
         }
-        // Integrate collectionItemsData with userGames and add poll result summary data.
-        for (const game of userGames) {
-            // Add poll result summary data to games.
-            if (Array.isArray(game.poll) && Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
-            if (Array.isArray(game.poll) && Number(game.poll[1]._attributes.totalvotes) > 0) game.poll[1].resultSummary = computePlayerAge(game);
-            
-            // Find collection item data for the current game.
-            const d = findCollectionItemData(game._attributes.id, collectionItemsData);
-            // Add collection item data to game object.
-            if (d) game.collectionData = d;
-            // Remove id from collectionData within the game object now that it is no longer required.
-            // ***This is disabled because it was causing an error.
-            // if (game.collectionData.id) delete game.collectionData.id;
+        // Integrate collectionItemsData with userGames and add poll result summary data. At this point userGames will either be undefined, an object, or an array.
+        if (Array.isArray(userGames)) {
+            for (const game of userGames) {
+                integrateGameData(game);
+            }
+        } else if (userGames !== undefined) {
+            integrateGameData(userGames);
         }
 
         // // ***NOT CURRENTLY IN USE

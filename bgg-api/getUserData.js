@@ -45,8 +45,12 @@ const getBGGUserData = async (bggUsername) => {
     // Initialize userPlays object and add thumbnail src key object.
     const userPlays = playsResponseObject.plays;
     userPlays.thumbnailURLs = {};
-    for (const game of userGames) {
-        if (userPlayIDSet.has(game._attributes.id)) userPlays.thumbnailURLs[`${game._attributes.id}`] = game.thumbnail._text || "no image available";
+    if (Array.isArray(userGames)) {
+        for (const game of userGames) {
+            if (userPlayIDSet.has(game._attributes.id)) userPlays.thumbnailURLs[`${game._attributes.id}`] = game.thumbnail._text || "no image available";
+        }
+    } else if (userGames !== undefined) {
+        if (userPlayIDSet.has(userGames._attributes.id)) userPlays.thumbnailURLs[`${userGames._attributes.id}`] = userGames.thumbnail._text || "no image available";
     }
 
     // Assemble user data object.
