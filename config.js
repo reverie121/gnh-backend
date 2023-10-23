@@ -33,6 +33,7 @@ console.log("---");
 module.exports = {
   SECRET_KEY,
   PORT,
+  REDIS_URL, 
   BCRYPT_WORK_FACTOR,
   getDatabaseUri,
 };
