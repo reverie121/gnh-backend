@@ -3,12 +3,15 @@
 const redis = require("redis");
 
 const getCollectionData = require("./getGameData");
-const { REDIS_URL } = require("../config");
+const { REDIS_HOST, REDIS_PORT } = require("../config");
 
 const getBGGCollectionData = async (bggUsername) => {
 
     // Set up and connect to redis client.
-    const redisClient = redis.createClient({url: REDIS_URL});
+    const redisClient = redis.createClient({
+        host: REDIS_HOST,
+        port: REDIS_PORT
+    });
     const defaultExp = 3600;
     redisClient.on("error", (error) => console.error(`Error : ${error}`));
     await redisClient.connect();
