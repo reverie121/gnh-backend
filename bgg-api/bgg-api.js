@@ -3,7 +3,7 @@ const convert = require("xml-js");
 
 const getTopIdString = require("./top100Scraper");
 
-const BASE_URL = process.env.REACT_APP_BASE_URL || "https://boardgamegeek.com/xmlapi2";
+const BASE_URL = "https://boardgamegeek.com/xmlapi2";
 
 /** API Class.
  *
