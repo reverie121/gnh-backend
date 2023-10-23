@@ -3,7 +3,7 @@ const redis = require("redis");
 
 const GameNightBGGHelperAPI = require("./bgg-api");
 const { computePlayerCount, computePlayerAge } = require("./gameDataHelpers");
-const { REDIS_URL } = require("../config");
+const { REDIS_HOST, REDIS_PORT } = require("../config");
 
 const getHot50 = async () => {
 
@@ -11,8 +11,10 @@ const getHot50 = async () => {
     const hot50IdList = [];
 
     // Set up and connect to redis client.
-    const redisClient = redis.createClient({url: REDIS_URL});
-    const defaultExp = (3600*3);
+    const redisClient = redis.createClient({
+        host: REDIS_HOST,
+        port: REDIS_PORT
+    });    const defaultExp = (3600*3);
     redisClient.on("error", (error) => console.error(`Error : ${error}`));
     await redisClient.connect();
 

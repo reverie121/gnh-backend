@@ -9,7 +9,8 @@ const SECRET_KEY = process.env.SECRET_KEY || "secret-dev";
 
 const PORT = +process.env.PORT || 3001;
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379"
+const REDIS_HOST = process.env.REDIS_HOST || "127.0.0.1"
+const REDIS_PORT = process.env.REDIS_PORT || "6379"
 
 // Use dev database, testing database, or via env var, production database
 function getDatabaseUri() {
@@ -33,7 +34,8 @@ console.log("---");
 module.exports = {
   SECRET_KEY,
   PORT,
-  REDIS_URL, 
+  REDIS_HOST,
+  REDIS_PORT,  
   BCRYPT_WORK_FACTOR,
   getDatabaseUri,
 };
