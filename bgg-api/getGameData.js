@@ -147,7 +147,7 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
             let lIndx = 0;
             let rIndx = dataToIntegrate.length - 1;
             let mIndx;
-            // Use divide & conquer to find the correct data to integrate, matching on game ID.
+            // Use binary search to find the correct data to integrate, matching on game ID.
             while (lIndx <= rIndx) {
                 if (dataToIntegrate[lIndx].id == gameID) return dataToIntegrate[lIndx];
                 else if (dataToIntegrate[rIndx].id == gameID) return dataToIntegrate[rIndx];
@@ -163,10 +163,10 @@ const getCollectionData = async (bggUsername, mode="collection", playsIDs=[]) =>
         // Integrate collectionItemsData with userGames and add poll result summary data. At this point userGames will either be undefined, an object, or an array.
         if (Array.isArray(userGames)) {
             for (const game of userGames) {
-                integrateGameData(game);
+                integrateGameData(game, "user");
             }
         } else if (userGames !== undefined) {
-            integrateGameData(userGames);
+            integrateGameData(userGames, "user");
         }
 
         // // ***NOT CURRENTLY IN USE
