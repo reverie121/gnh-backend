@@ -8,6 +8,7 @@ const getBGGCollectionData = require("../bgg-api/getBGGCollectionData")
 const getBGGUserData = require("../bgg-api/getUserData")
 const getTop100 = require("../bgg-api/getTop100");
 const getHot50 = require("../bgg-api/getHot50")
+const { connectRedis } = require("../utils/redis");
 
 // const User = require("../models/user");
 // const userNewSchema = require("../schemas/userNew.json");
