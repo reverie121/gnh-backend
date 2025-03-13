@@ -39,11 +39,11 @@ const getHot50 = async () => {
     // Get game data for the Hot 50 games from BGG.
     const hotGamesIdString = hot50IdList.join(",");
     const gamesRes = await GameNightBGGHelperAPI.getGameData(hotGamesIdString)
-    const parsedGamesRes = JSON.parse(
-        convert.xml2json(gamesRes, { compact: true, spaces: 2 })
-    );
-    const hot50Games = parsedGamesRes.items.item;
-
+    // const parsedGamesRes = JSON.parse(
+    //     convert.xml2json(gamesRes, { compact: true, spaces: 2 })
+    // );
+    // const hot50Games = parsedGamesRes.items.item;
+    const hot50Games = gamesRes.items.item;
     for (const game of hot50Games) {
         // Add Hotness rank to game data.
         game['hotnessRank'] = hot50ExtractedData[`${game._attributes.id}`];

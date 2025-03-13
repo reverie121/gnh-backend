@@ -29,6 +29,38 @@ class GameNightBGGHelperAPI {
     }
   }
 
+  /**
+   * Fetches data for multiple games specified by comma-separated IDs.
+   * Makes multiple requests if the number of IDs exceeds the BGG API limit (20).
+   * @param {string} idString Comma-separated string of game IDs.
+   * @returns {Promise<object>} Combined game data from all requests.
+   */
+  static async getMultipleGames(idString) {
+    const MAX_IDS_PER_REQUEST = 20;
+    const ids = idString.split(',');
+    const requests = [];
+    for (let i = 0; i < ids.length; i += MAX_IDS_PER_REQUEST) {
+      const chunk = ids.slice(i, i + MAX_IDS_PER_REQUEST);
+      const requestString = `thing?id=${chunk.join(',')}&stats=1`;
+      requests.push(this.request(requestString));
+    }
+
+    const responses = await Promise.all(requests);
+    // Combine data from all responses (assuming consistent structure)
+    const combinedData = responses.reduce((acc, res) => {
+      if (res.data) {
+        let js_res = convert.xml2js(res.data, { compact: true, spaces: 2 });
+        if (js_res.items) { // Check for valid data structure
+          acc.items.item = acc.items.item.concat(js_res.items.item);
+        }
+      }
+      return acc;
+    }, { items: { item: [] } });
+
+    let res = {data: combinedData}
+    return res;
+  }
+
   // COLLECTION API Routes
 
   /** Get a collection. */
@@ -100,7 +132,8 @@ class GameNightBGGHelperAPI {
 
   static async getGameData(id) {
     console.debug('Requesting detailed game data.');
-    let res = await this.request(`thing?id=${id}&stats=1`);
+    //let res = await this.request(`thing?id=${id}&stats=1`);
+    let res = await this.getMultipleGames(id);
     return res.data;
   }
 
@@ -109,7 +142,8 @@ class GameNightBGGHelperAPI {
   static async getTop100() {
     console.debug('Requesting Top 100 game data.');
     const idString = await getTopIdString();
-    let res = await this.request(`thing?id=${idString}&stats=1`);
+    //let res = await this.request(`thing?id=${idString}&stats=1`);
+    let res = await this.getMultipleGames(idString);
     return res.data;
   }
 

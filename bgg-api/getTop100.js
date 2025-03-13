@@ -21,10 +21,12 @@ const getTop100 = async () => {
     }
 
     const res = await GameNightBGGHelperAPI.getTop100();
-    const data = JSON.parse(
-      convert.xml2json(res, { compact: true, spaces: 2 })
-    )
-    const top100Games = data.items.item;
+    // XML parsing moved into GameNightBGGHelperAPI.getMultipleGames when 20 item limit imposed on API.
+    // const data = JSON.parse(
+    //   convert.xml2json(res, { compact: true, spaces: 2 })
+    // )
+    //const top100Games = res.items.item;
+    const top100Games = res.items.item;
     for (const game of top100Games) {
         // Add poll result summary data to games.
         if (Array.isArray(game.poll) && Number(game.poll[0]._attributes.totalvotes) > 0) game.poll[0].resultSummary = computePlayerCount(game);
