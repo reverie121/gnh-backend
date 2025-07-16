@@ -1,17 +1,14 @@
 const { xml2json } = require("xml-js");
-const { redisClient } = require("../utils/redis"); // Correct import
-const GameNightBGGHelperAPI = require("./bgg-api");
+const { redisClient, redisAvailable, inMemoryCache } = require("../utils/redis");const GameNightBGGHelperAPI = require("./bgg-api");
 const getCollectionData = require("./getGameData");
 
 const getBGGUserData = async (bggUsername) => {
-    console.log(`getUserData: Checking redisClient.isReady: ${redisClient && redisClient.isReady}`); // Log redisClient.isReady
+    console.log(`getUserData: Checking redisAvailable: ${redisAvailable}`);
 
-    if (redisClient && redisClient.isReady) {
+    if (redisAvailable) {
         try {
-            await redisClient.ping();
-            console.log(`getUserData: Redis PING successful.`);
             console.log(`getUserData: Attempting to get user data from Redis for ${bggUsername}`);
-            const cachedUserData = await redisClient.get(`user-${bggUsername}`);
+            const cachedUserData = redisAvailable ? await redisClient.get(`user-${bggUsername}`) : inMemoryCache.get(`user-${bggUsername}`);
             if (cachedUserData !== null) {
                 console.log(`getUserData: Returning cached user data for ${bggUsername}`);
                 return JSON.parse(cachedUserData);
@@ -70,16 +67,17 @@ const getBGGUserData = async (bggUsername) => {
         userPlays
     };
 
-    if (redisClient && redisClient.isReady) {
+    if (redisAvailable) {
         try {
-            await redisClient.setEx(`user-${bggUsername}`, 3600, JSON.stringify(bggUser));
+            redisAvailable ? await redisClient.setEx(`user-${bggUsername}`, 3600, JSON.stringify(bggUser)) : inMemoryCache.set(`user-${bggUsername}`, bggUser, 3600);
             console.log(`getUserData: User data set in Redis for ${bggUsername}`);
         } catch (error) {
-            console.error(`getUserData: Redis Set Error: ${error.message}`);
+            console.error(`getUserData: Cache Set Error: ${error.message}`);
             console.error(error);
         }
     } else {
-        console.log(`getUserData: Redis client not ready, skipping Redis set for ${bggUsername}`);
+        console.log(`getUserData: Using in-memory cache for ${bggUsername}`);
+        inMemoryCache.set(`user-${bggUsername}`, bggUser, 3600);
     }
 
     return bggUser;

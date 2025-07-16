@@ -1,5 +1,3 @@
-// app.js
-
 const express = require("express");
 const cors = require("cors");
 const { NotFoundError } = require("./expressError");
@@ -9,7 +7,8 @@ const usersRoutes = require("./routes/users");
 const bggRoutes = require("./routes/bgg");
 const quickFilterRoutes = require("./routes/quickFilters");
 const morgan = require("morgan");
-const { connectRedis } = require("./utils/redis");
+const { connectRedis, redisAvailable, inMemoryCache } = require("./utils/redis");
+const { REDIS_ENABLED } = require("./config");
 
 const app = express();
 
@@ -53,24 +52,31 @@ app.use(function (err, req, res, next) {
 
 const PORT = process.env.PORT || 3001;
 
-let redisIsReady = false; // Add readiness flag
+// Start the server immediately
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`.green);
+});
 
-// Start the server AFTER Redis connects
-connectRedis()
-  .then(() => {
-    redisIsReady = true; // Set readiness flag
-    console.log("Redis is fully ready.");
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Server failed to start due to Redis connection error:", err);
-    process.exit(1);
-  });
+// Attempt Redis connection separately
+if (REDIS_ENABLED) {
+  (async () => {
+    try {
+      const isRedisConnected = await connectRedis(); // Capture the boolean result
+      console.log("Redis is fully ready:".green, isRedisConnected); // Log the result
+    } catch (err) {
+      console.error("Failed to connect to Redis:".red, err.message);
+      if (process.env.NODE_ENV !== "test") console.error(err);
+      console.log("Continuing with in-memory cache.".yellow);
+    }
+  })();
+} else {
+  console.log("Redis connection skipped: REDIS_ENABLED is false".yellow);
+  console.log("Redis is fully ready:".green, false); // This is still correct here
+}
 
+// Endpoint to check Redis readiness
 app.get('/redis-ready', (req, res) => {
-    res.json({ ready: redisIsReady });
+  res.json({ ready: redisAvailable, redisEnabled: REDIS_ENABLED, usingInMemoryCache: !REDIS_ENABLED || !redisAvailable });
 });
 
 module.exports = app;

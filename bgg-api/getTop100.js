@@ -1,20 +1,15 @@
-const { redisClient } = require("../utils/redis");
-const GameNightBGGHelperAPI = require("./bgg-api");
+const { redisClient, redisAvailable, inMemoryCache } = require("../utils/redis");const GameNightBGGHelperAPI = require("./bgg-api");
 const { computePlayerCount, computePlayerAge } = require("./gameDataHelpers");
 
 const getTop100 = async () => {
-    console.log(`getTop100: Checking redisClient.isReady: ${redisClient && redisClient.isReady}`);
+    console.log(`getTop100: Checking redisAvailable: ${redisAvailable}`);
 
     // Check if Redis client is ready before attempting to use it
-    if (redisClient && redisClient.isReady) {
+    if (redisAvailable) {
         try {
-            await redisClient.ping(); // Verify Redis connection
-            console.log(`getTop100: Redis PING successful.`);
-
-            // Attempt to retrieve cached Top 100 data from Redis
+             // Attempt to retrieve cached Top 100 data from Redis
             console.log(`getTop100: Attempting to get Top 100 data from Redis`);
-            const cachedTop100 = await redisClient.get(`top-100`);
-
+            const cachedTop100 = redisAvailable ? await redisClient.get(`top-100`) : inMemoryCache.get(`top-100`);
             // If cached data exists, parse and return it
             if (cachedTop100 !== null) {
                 console.log(`getTop100: Returning cached data for Top 100 Games`);
@@ -47,16 +42,17 @@ const getTop100 = async () => {
         }
 
         // Cache the fetched data in Redis if Redis client is ready
-        if (redisClient && redisClient.isReady) {
+        if (redisAvailable) {
             try {
-                await redisClient.setEx(`top-100`, 3600 * 12, JSON.stringify(top100Games)); // Cache for 12 hours
+                redisAvailable ? await redisClient.setEx(`top-100`, 3600 * 12, JSON.stringify(top100Games)) : inMemoryCache.set(`top-100`, top100Games, 3600 * 12);
                 console.log(`getTop100: Top 100 data set in Redis`);
             } catch (error) {
-                console.error(`getTop100: Redis Set Error: ${error.message}`);
+                console.error(`getTop100: Cache Set Error: ${error.message}`);
                 console.error(error);
             }
         } else {
-            console.log(`getTop100: Redis client not ready, skipping Redis set`);
+            console.log(`getTop100: Using in-memory cache`);
+            inMemoryCache.set(`top-100`, top100Games, 3600 * 12);
         }
 
         return top100Games; // Return the processed data

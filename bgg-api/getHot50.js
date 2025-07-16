@@ -1,21 +1,16 @@
 const convert = require("xml-js"); // Library for XML to JSON conversion
-const { redisClient } = require("../utils/redis"); // Redis client instance
+const { redisClient, redisAvailable, inMemoryCache } = require("../utils/redis"); // Redis client instance
 const GameNightBGGHelperAPI = require("./bgg-api"); // API helper for BGG requests
 const { computePlayerCount, computePlayerAge } = require("./gameDataHelpers"); // Helper functions for game data processing
 
 const getHot50 = async () => {
-    console.log(`getHot50: Checking redisClient.isReady: ${redisClient && redisClient.isReady}`); // Log Redis client readiness
-
+    console.log(`getHot50: Checking redisAvailable: ${redisAvailable}`);
     // Check if Redis client is ready before attempting to use it
-    if (redisClient && redisClient.isReady) {
-        try {
-            await redisClient.ping(); // Check if Redis connection is active
-            console.log(`getHot50: Redis PING successful.`);
-
+    if (redisAvailable) {
+            try {
             // Attempt to retrieve cached Hot 50 data from Redis
             console.log(`getHot50: Attempting to get Hot 50 data from Redis`);
-            const cachedHot50 = await redisClient.get(`hot-50`);
-
+            const cachedHot50 = redisAvailable ? await redisClient.get(`hot-50`) : inMemoryCache.get(`hot-50`);
             // If cached data exists, parse and return it
             if (cachedHot50 !== null) {
                 console.log(`getHot50: Returning cached data for Hot 50 Games`);
@@ -72,16 +67,17 @@ const getHot50 = async () => {
     }
 
     // Cache the fetched data in Redis if Redis client is ready
-    if (redisClient && redisClient.isReady) {
+    if (redisAvailable) {
         try {
-            await redisClient.setEx(`hot-50`, 3600 * 3, JSON.stringify(hot50Games)); // Cache for 3 hours
+            redisAvailable ? await redisClient.setEx(`hot-50`, 3600 * 3, JSON.stringify(hot50Games)) : inMemoryCache.set(`hot-50`, hot50Games, 3600 * 3);
             console.log(`getHot50: Hot 50 data set in Redis`);
         } catch (error) {
-            console.error(`getHot50: Redis Set Error: ${error.message}`);
+            console.error(`getHot50: Cache Set Error: ${error.message}`);
             console.error(error);
         }
     } else {
-        console.log(`getHot50: Redis client not ready, skipping Redis set`);
+        console.log(`getHot50: Using in-memory cache`);
+        inMemoryCache.set(`hot-50`, hot50Games, 3600 * 3);
     }
 
     return hot50Games; // Return the processed game data
