@@ -1,2 +1,7 @@
 node_modules/
 .DS_Store
+.htaccess
+app_debug.log
+stderr.log
+tmp/
+node_modules

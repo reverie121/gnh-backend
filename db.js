@@ -1,3 +1,5 @@
+// db.js
+
 "use strict";
 /** Database setup for GNH. */
 const { Client } = require("pg");
@@ -8,9 +10,7 @@ let db;
 if (process.env.NODE_ENV === "production") {
   db = new Client({
     connectionString: getDatabaseUri(),
-    ssl: {
-      rejectUnauthorized: false
-    }
+    ssl: false // <--- CHANGE THIS LINE from { rejectUnauthorized: false } to false
   });
 } else {
   db = new Client({

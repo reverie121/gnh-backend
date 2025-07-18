@@ -1,5 +1,8 @@
+// app.js
+
 const express = require("express");
 const cors = require("cors");
+const fs = require('fs');
 const { NotFoundError } = require("./expressError");
 const { authenticateJWT } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
@@ -8,17 +11,41 @@ const bggRoutes = require("./routes/bgg");
 const quickFilterRoutes = require("./routes/quickFilters");
 const morgan = require("morgan");
 const { connectRedis, redisAvailable, inMemoryCache } = require("./utils/redis");
-const { REDIS_ENABLED } = require("./config");
+
+function writeLog(message) {
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync('/home/outstan3/server.gamenighthelper.outstandingcode.com/app_debug.log', `${timestamp} - ${message}\n`, 'utf8');
+}
+const { REDIS_ENABLED, CLIENT_ORIGIN, dbConfig } = require("./config");
+
+writeLog("APP START: Application `app.js` is beginning execution.");
+writeLog(`APP START: process.env.NODE_ENV = ${process.env.NODE_ENV}`);
+writeLog(`APP START: CLIENT_ORIGIN (from config) = ${CLIENT_ORIGIN}`);
+writeLog(`APP START: process.env.PGSSLMODE = ${process.env.PGSSLMODE}`);
+writeLog(`APP START: Configured DB SSL Setting for Pool Options: ${dbConfig.ssl}`); // Confirm config's understanding
+
 
 const app = express();
 
 console.log("Server starting...");
+writeLog("APP LOG: Server starting console.log encountered.");
 
 console.log("Loading Middleware...");
-app.use(cors());
+writeLog("APP LOG: Loading Middleware console.log encountered.");
+app.use(cors({
+  origin: CLIENT_ORIGIN,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(morgan("tiny"));
 app.use(authenticateJWT);
+
+app.get('/test-cors', (req, res) => {
+  console.log("TEST-CORS route hit!");
+  return res.json({ message: "CORS test successful!" });
+});
 
 console.log("Loading Routes...");
 app.get('/test', (req, res) => {
@@ -50,11 +77,12 @@ app.use(function (err, req, res, next) {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 30010;
 
 // Start the server immediately
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`.green);
+  writeLog(`APP LOG: Server successfully listening on port ${PORT}.`);
 });
 
 // Attempt Redis connection separately
