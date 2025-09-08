@@ -10,13 +10,13 @@ const usersRoutes = require("./routes/users");
 const bggRoutes = require("./routes/bgg");
 const quickFilterRoutes = require("./routes/quickFilters");
 const morgan = require("morgan");
-const { connectRedis, redisAvailable, inMemoryCache } = require("./utils/redis");
+const { connectRedis, redisAvailable } = require("./utils/redis");
 
 function writeLog(message) {
     const timestamp = new Date().toISOString();
-    fs.appendFileSync('/home/outstan3/server.gamenighthelper.outstandingcode.com/app_debug.log', `${timestamp} - ${message}\n`, 'utf8');
+    fs.appendFileSync(LOG_FILE_PATH, `${timestamp} - ${message}\n`, 'utf8');
 }
-const { REDIS_ENABLED, CLIENT_ORIGIN, dbConfig } = require("./config");
+const { REDIS_ENABLED, CLIENT_ORIGIN, dbConfig, LOG_FILE_PATH } = require("./config");
 
 writeLog("APP START: Application `app.js` is beginning execution.");
 writeLog(`APP START: process.env.NODE_ENV = ${process.env.NODE_ENV}`);

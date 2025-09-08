@@ -1,44 +1,64 @@
-const getCollectionData = require("./getGameData");
-const { redisClient, redisAvailable, inMemoryCache } = require("../utils/redis");
+// bgg-api/getBGGCollectionData.js
+'use strict';
 
-const getBGGCollectionData = async (bggUsername) => {
-    console.log(`getBGGCollectionData: Checking redisAvailable: ${redisAvailable}`);
+const getCollectionData = require('./getGameData');
+const { redisClient, redisAvailable, inMemoryCache } = require('../utils/redis');
 
-    if (redisAvailable) {
-            try {
-            console.log(`getBGGCollectionData: Attempting to get collection data from Redis for ${bggUsername}`);
-            const cachedCollectionData = redisAvailable ? await redisClient.get(`collection-${bggUsername}`) : inMemoryCache.get(`collection-${bggUsername}`);
-            if (cachedCollectionData !== null) {
-                console.log(`getBGGCollectionData: Returning cached collection data for ${bggUsername}`);
-                return JSON.parse(cachedCollectionData);
-            } else {
-                console.log(`getBGGCollectionData: Cached collection data for ${bggUsername} not found in Redis.`);
-            }
-        } catch (error) {
-            console.error(`getBGGCollectionData: Redis Get Error: ${error.message}`);
-            console.error(error);
-        }
-    } else {
-        console.log(`getBGGCollectionData: Redis client not ready, skipping Redis get for ${bggUsername}`);
-    }
+const CACHE_TTL_SECONDS = 3600;
 
-    console.log(`getBGGCollectionData: Fetching collection data from BGG API for ${bggUsername}`);
-    const userGames = await getCollectionData(bggUsername);
+function normalizeUsername(u) {
+  return String(u || '').trim().toLowerCase();
+}
 
-    if (redisAvailable) {
-        try {
-            redisAvailable ? await redisClient.setEx(`collection-${bggUsername}`, 3600, JSON.stringify(userGames)) : inMemoryCache.set(`collection-${bggUsername}`, userGames, 3600);
-            console.log(`getBGGCollectionData: Collection data set in Redis for ${bggUsername}`);
-        } catch (error) {
-            console.error(`getBGGCollectionData: Cache Set Error: ${error.message}`);
-            console.error(error);
-        }
-    } else {
-        console.log(`getBGGCollectionData: Using in-memory cache for ${bggUsername}`);
-        inMemoryCache.set(`collection-${bggUsername}`, userGames, 3600);
-    }
+async function getFromCache(key) {
+  if (!redisAvailable) return inMemoryCache.get(key) ?? null;
+  try {
+    const raw = await redisClient.get(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.error(`getBGGCollectionData: Redis GET failed (${key}): ${err.message}`);
+    return inMemoryCache.get(key) ?? null; // graceful fallback
+  }
+}
 
-    return userGames;
-};
+async function setCache(key, value) {
+  if (!redisAvailable) {
+    inMemoryCache.set(key, value, CACHE_TTL_SECONDS);
+    return;
+  }
+  try {
+    await redisClient.setEx(key, CACHE_TTL_SECONDS, JSON.stringify(value));
+  } catch (err) {
+    console.error(`getBGGCollectionData: Redis SETEX failed (${key}): ${err.message}`);
+    inMemoryCache.set(key, value, CACHE_TTL_SECONDS); // graceful fallback
+  }
+}
+
+async function getBGGCollectionData(bggUsername) {
+  const uname = normalizeUsername(bggUsername);
+  const cacheKey = `collection-${uname}`;
+
+  console.log(`getBGGCollectionData: cache lookup for ${uname} (redisAvailable=${redisAvailable})`);
+  const cached = await getFromCache(cacheKey);
+  if (cached) {
+    console.log(`getBGGCollectionData: hit for ${uname}`);
+    return cached;
+  }
+
+  console.log(`getBGGCollectionData: miss for ${uname}; fetching from BGG`);
+  let userGames;
+  try {
+    // be explicit about mode to avoid future regressions
+    userGames = await getCollectionData(uname, 'collection');
+  } catch (err) {
+    console.error(`getBGGCollectionData: fetch failed for ${uname}: ${err.message}`);
+    throw err;
+  }
+
+  await setCache(cacheKey, userGames);
+  console.log(`getBGGCollectionData: cached result for ${uname}`);
+
+  return userGames;
+}
 
 module.exports = getBGGCollectionData;

@@ -1,160 +1,211 @@
+// bgg-api/bgg-api.js
+"use strict";
+
 const axios = require("axios");
 const convert = require("xml-js");
-
 const getTopIdString = require("./top100Scraper");
 
 const BASE_URL = "https://boardgamegeek.com/xmlapi2";
 
-/** API Class.
- *
- * Static class tying together methods used to get/send to to the API.
- * There shouldn't be any frontend-specific stuff here, and there shouldn't
- * be any API-aware stuff elsewhere in the frontend.
- *
- */
+// Small helper
+const isoDateOnly = (d) => {
+  try {
+    if (!d) return null;
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return null;
+    return dt.toISOString().slice(0, 10); // YYYY-MM-DD
+  } catch {
+    return null;
+  }
+};
 
 class GameNightBGGHelperAPI {
-
-  static async request(endpoint, data = {}, method = "get") {
-    console.debug("BGG API Call:", endpoint, data, method);
-
+  static async request(endpoint, method = "get") {
     const url = `${BASE_URL}/${endpoint}`;
+    console.debug("BGG API Call:", url);
     try {
       return await axios({ url, method });
     } catch (err) {
-      console.error("API Error:", err.response);
-      let data = convert.xml2js(err.response.data, { compact: true, spaces: 2 });
-      let message = data.error.message._text;
-      throw { status: err.response.status, message }
+      const status = err?.response?.status || 500;
+      let message = "BGG request failed";
+      try {
+        if (err?.response?.data) {
+          const parsed = convert.xml2js(err.response.data, { compact: true, spaces: 2 });
+          message =
+            parsed?.error?.message?._text ||
+            parsed?.message?._text ||
+            err?.response?.statusText ||
+            message;
+        } else if (err?.message) {
+          message = err.message;
+        }
+      } catch {
+        // swallow parse error; keep fallback message
+      }
+      // Bubble a normalized error
+      const e = new Error(message);
+      e.status = status;
+      throw e;
     }
   }
 
-  /**
-   * Fetches data for multiple games specified by comma-separated IDs.
-   * Makes multiple requests if the number of IDs exceeds the BGG API limit (20).
-   * @param {string} idString Comma-separated string of game IDs.
-   * @returns {Promise<object>} Combined game data from all requests.
-   */
+  // ----------------------------
+  // /thing (multi-id convenience)
+  // ----------------------------
   static async getMultipleGames(idString) {
     const MAX_IDS_PER_REQUEST = 20;
-    const ids = idString.split(',');
+    const ids = idString.split(",").map((s) => s.trim()).filter(Boolean);
     const requests = [];
+
     for (let i = 0; i < ids.length; i += MAX_IDS_PER_REQUEST) {
       const chunk = ids.slice(i, i + MAX_IDS_PER_REQUEST);
-      const requestString = `thing?id=${chunk.join(',')}&stats=1`;
+      const requestString = `thing?id=${chunk.join(",")}&stats=1`;
       requests.push(this.request(requestString));
     }
 
     const responses = await Promise.all(requests);
-    // Combine data from all responses (assuming consistent structure)
-    const combinedData = responses.reduce((acc, res) => {
-      if (res.data) {
-        let js_res = convert.xml2js(res.data, { compact: true, spaces: 2 });
-        if (js_res.items) { // Check for valid data structure
-          acc.items.item = acc.items.item.concat(js_res.items.item);
-        }
-      }
-      return acc;
-    }, { items: { item: [] } });
+    const combined = { items: { item: [] } };
 
-    let res = {data: combinedData}
+    for (const res of responses) {
+      if (!res?.data) continue;
+      const js = convert.xml2js(res.data, { compact: true, spaces: 2 });
+      const it = js?.items?.item;
+      if (!it) continue;
+      if (Array.isArray(it)) combined.items.item = combined.items.item.concat(it);
+      else combined.items.item.push(it);
+    }
+    // mirror prior shape { data: combined } then unwrap
+    return combined;
+  }
+
+  /**
+   * Get data for one or more games.
+   * Accepts an optional opts param for future flexibility (e.g., { stats: 1 }).
+   * Returns a JS object with .items.item already parsed (not raw XML).
+   */
+  static async getGameData(id, _opts = {}) {
+    console.debug("Requesting detailed game data (thing).");
+    const data = await this.getMultipleGames(id);
+    return data; // { items: { item: [...] } }
+  }
+
+  // ----------------------------
+  // /collection
+  // ----------------------------
+  /**
+   * Fetch a user's collection. Handles BGG's 202 retry behavior.
+   * mode: 'user' (default) or 'collection' (when you want own=1)
+   * opts: { stats, version, showprivate, modifiedsince, subtype, excludesubtype, own }
+   *   - stats/version/showprivate: numbers or '1'
+   *   - modifiedsince: Date/string; will be coerced to YYYY-MM-DD if possible
+   */
+  static async getCollection(username, mode = "user", opts = {}, tries = 0, priorRes = null) {
+    // Build query
+    const params = new URLSearchParams();
+    params.set("username", username);
+
+    // Defaults you had previously
+    if (opts.excludesubtype !== null && opts.excludesubtype !== undefined) {
+      if (String(opts.excludesubtype).length) params.set("excludesubtype", String(opts.excludesubtype));
+    } else {
+      // keep prior default to exclude expansions
+      params.set("excludesubtype", "boardgameexpansion");
+    }
+
+    // Always include stats (prior behavior) unless explicitly disabled
+    if (opts.stats === 0 || opts.stats === "0" || opts.stats === false) {
+      // do not set
+    } else {
+      params.set("stats", "1");
+    }
+
+    // Add rich fields if requested
+    if (opts.version) params.set("version", "1");
+    if (opts.showprivate) params.set("showprivate", "1");
+
+    // Honor "own=1" when mode === 'collection' (prior behavior)
+    if (mode === "collection" || opts.own === 1 || opts.own === "1" || opts.own === true) {
+      params.set("own", "1");
+    }
+
+    // Optional subtype filter override
+    if (opts.subtype) params.set("subtype", String(opts.subtype));
+
+    // Modified-since (attempt YYYY-MM-DD per common usage)
+    const ms = isoDateOnly(opts.modifiedsince);
+    if (ms) params.set("modifiedsince", ms);
+
+    const requestString = `collection?${params.toString()}`;
+
+    // Retry logic (BGG returns 202 while queued)
+    tries += 1;
+    if (tries > 6) {
+      // Avoid 429s; surface what we have
+      console.warn(`BGG /collection retry limit reached for ${username}`);
+      return priorRes ?? { status: 429, data: "<error>Too many retries</error>" };
+    }
+
+    const makeRequest = async () => this.request(requestString);
+
+    let res;
+    if (!priorRes) {
+      // initial call
+      res = await makeRequest();
+    } else {
+      res = priorRes;
+    }
+
+    if (res.status === 200) {
+      return res; // axios response with raw XML in res.data
+    }
+
+    if (res.status === 202) {
+      const delayMs = tries * 2000;
+      await new Promise((r) => setTimeout(r, delayMs));
+      const next = await makeRequest();
+      return this.getCollection(username, mode, opts, tries, next);
+    }
+
+    // other statuses: return as-is (caller will handle)
     return res;
   }
 
-  // COLLECTION API Routes
-
-  /** Get a collection. */
-
-  static async getCollection(username, type='collection', tries=0, res={}) {
-
-    let requestString = `collection?username=${username}&excludesubtype=boardgameexpansion&stats=1`
-    if (type=="collection") requestString = requestString + "&own=1";
-
-    // Increment a "tries" counter to reflect the number of the current request attempt for this collection.
-    tries++;
-    // BGG API will return status code 429 on the 7th attempt. What to do instead of 7th attempt?
-    if (tries > 6) return console.log("too many tries!!!");
-
-    if (res.status) {
-        // Base Case:
-        if (res.status !== 202) {
-            if (res.status === 200) {
-                return res;
-            } else {
-                // What might this be???
-                console.debug(res);
-                return res;
-            }
-        } 
-        // If request has been made but is still in queue, status code will be 202. We should delay and then send the request again.
-        else if (res.status === 202) {
-            // Helper function to implement a delay.
-            function delay(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-            console.debug(`Response in queue. Repeating request after ${tries*2} seconds.`);
-            // Set delay equal to the current attempt (#) * 2 seconds and await delay.
-            const msDelay = tries*2000
-            await delay(msDelay);
-            // Make new request to BGG API, overwriting the res variable.
-            res = await this.request(requestString);
-            // Call this function again with the updated res.
-            return await this.getCollection(username, type, tries, res);
-        }
-    }
-    // When initially called res will be an empty object.
-    else {
-        console.debug('Making initial request for collection.')
-        // Make initial request to BGG API, overwriting the empty res object.
-        res = await this.request(requestString);
-        // Call this function again with the updated res.
-        return await this.getCollection(username, type, tries, res);
-    }
-  }
-
-  /** Get a user. */
-
+  // ----------------------------
+  // /user
+  // ----------------------------
   static async getUser(username) {
     console.debug(`Requesting user data for BGG user ${username}`);
-    let res = await this.request(`user?name=${username}&buddies=1&guilds=1&hot=1&top=1&domain=boardgame`);
-    return res.data;
+    const res = await this.request(
+      `user?name=${encodeURIComponent(username)}&buddies=1&guilds=1&hot=1&top=1&domain=boardgame`
+    );
+    return res.data; // raw XML
   }
 
-  /** Get plays data for a user. */
-
-  static async getPlays(username) {
+  // ----------------------------
+  // /plays
+  // ----------------------------
+  static async getPlays(username, extraQuery = "") {
     console.debug(`Requesting plays data for BGG user ${username}`);
-    let res = await this.request(`plays?username=${username}`);
-    return res.data;
+    const suffix = extraQuery ? `&${extraQuery.replace(/^\&/, "")}` : "";
+    const res = await this.request(`plays?username=${encodeURIComponent(username)}${suffix}`);
+    return res.data; // raw XML
   }
 
-  /** Get data for one or more games. */
-
-  static async getGameData(id) {
-    console.debug('Requesting detailed game data.');
-    //let res = await this.request(`thing?id=${id}&stats=1`);
-    let res = await this.getMultipleGames(id);
-    return res.data;
-  }
-
-  /** Get data for the top 100 ranked games. */
-
+  // ----------------------------
+  // Top / Hot convenience
+  // ----------------------------
   static async getTop100() {
-    console.debug('Requesting Top 100 game data.');
+    console.debug("Requesting Top 100 game data.");
     const idString = await getTopIdString();
-    //let res = await this.request(`thing?id=${idString}&stats=1`);
-    let res = await this.getMultipleGames(idString);
-    return res.data;
+    const data = await this.getMultipleGames(idString);
+    return data; // parsed JS
   }
-
-  /** Get data for the 50 hottest (most active) games. */
 
   static async getHot50() {
-    console.debug('Requesting Hot 50 game data.');
-    let res = await this.request(`hot?type=boardgame`);
-    return res.data;
+    console.debug("Requesting Hot 50 game data.");
+    const res = await this.request(`hot?type=boardgame`);
+    return res.data; // raw XML
   }
-
 }
 
 module.exports = GameNightBGGHelperAPI;

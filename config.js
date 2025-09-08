@@ -6,10 +6,15 @@ require("dotenv").config();
 require("colors");
 const { Pool } = require("pg");
 const fs = require('fs');
+const path = require('path');
+
+const LOG_FILE_PATH = process.env.NODE_ENV === "production"
+                      ? "/home/outstan3/server.gamenighthelper.outstandingcode.com/app_debug.log"
+                      : path.join(__dirname, 'app_debug.log'); // Relative path for local dev
 
 function writeConfigLog(message) {
     const timestamp = new Date().toISOString();
-    fs.appendFileSync('/home/outstan3/server.gamenighthelper.outstandingcode.com/app_debug.log', `${timestamp} - (Config) ${message}\n`, 'utf8');
+    fs.appendFileSync(LOG_FILE_PATH, `${timestamp} - (Config) ${message}\n`, 'utf8');
 }
 
 writeConfigLog("CONFIG LOAD: config.js is being loaded.");
@@ -36,7 +41,7 @@ function getDatabaseUri() {
 
 const poolOptions = {
     connectionString: getDatabaseUri(),
-    // Change this line to explicitly disable SSL for the database connection
+    // Explicitly disable SSL for the database connection
     ssl: false
 };
 
@@ -52,10 +57,10 @@ console.log("REDIS_URL:".yellow, REDIS_URL); // Added for debugging
 console.log("Database:".yellow, getDatabaseUri());
 console.log("---");
 
-console.log("DEBUG: config.js - Exporting CLIENT_ORIGIN:", CLIENT_ORIGIN); // Add this
-console.log("DEBUG: config.js - Exporting SSL setting:", poolOptions.ssl); // Add this (this is the most important one!)
+console.log("DEBUG: config.js - Exporting CLIENT_ORIGIN:", CLIENT_ORIGIN);
+console.log("DEBUG: config.js - Exporting SSL setting:", poolOptions.ssl);
 
-// config.js (at the very end)
+// config.js
 
 module.exports = {
     SECRET_KEY,
@@ -65,5 +70,6 @@ module.exports = {
     BCRYPT_WORK_FACTOR,
     getDatabaseUri,
     dbConfig: poolOptions, // Export poolOptions as dbConfig for app.js
-    CLIENT_ORIGIN
+    CLIENT_ORIGIN,
+    LOG_FILE_PATH
 };

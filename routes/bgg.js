@@ -4,11 +4,11 @@
 
 const express = require("express");
 
-const getBGGCollectionData = require("../bgg-api/getBGGCollectionData")
-const getBGGUserData = require("../bgg-api/getUserData")
+const getBGGCollectionData = require("../bgg-api/getBGGCollectionData");
+const getMultiBGGCollectionData = require("../bgg-api/getMultiBGGCollectionData"); 
+const getBGGUserData = require("../bgg-api/getUserData");
 const getTop100 = require("../bgg-api/getTop100");
-const getHot50 = require("../bgg-api/getHot50")
-const { connectRedis } = require("../utils/redis");
+const getHot50 = require("../bgg-api/getHot50");
 
 // const User = require("../models/user");
 // const userNewSchema = require("../schemas/userNew.json");
@@ -30,6 +30,39 @@ router.get("/collection/:bggUsername", async function(req, res, next) {
       } catch (err) {
         return next(err);
       }
+});
+
+router.get("/collections", async function(req, res, next) {
+  try {
+    const raw = Array.isArray(req.query.usernames)
+      ? req.query.usernames
+      : req.query.usernames ? req.query.usernames.split(",") : [];
+
+    // normalize + de-dupe inputs
+    const usernames = [...new Set(
+      raw.map(u => u.trim()).filter(Boolean).map(u => u.toLowerCase())
+  )];
+    if (usernames.length === 0) {
+      return res.status(400).json({ error: "No usernames provided." });
+    }
+
+    const collectionData = await getMultiBGGCollectionData(usernames);
+
+    // ✅ de-dupe per-game userCollections by (bgg_username, bgg_game_id)
+    const sanitized = collectionData.map(g => {
+      const seen = new Set();
+      const uniqueUC = [];
+      for (const uc of g.userCollections || []) {
+        const key = `${uc.bgg_username}|${g.bgg_id}|${uc.bgg_collid ?? `no-collid:${uc.bgg_version_id ?? 'no-version'}`}`;
+        if (!seen.has(key)) { seen.add(key); uniqueUC.push(uc); }
+      }
+      return { ...g, userCollections: uniqueUC };
+    });
+
+    return res.json({ collectionData: sanitized });
+  } catch (err) {
+    return next(err);
+  }
 });
 
 /** GET / => { userData: {
